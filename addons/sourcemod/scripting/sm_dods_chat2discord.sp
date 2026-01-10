@@ -7,7 +7,7 @@
 
 #define PLUGIN_VERSION "1.1"
 #define MAX_MESSAGES 500
-#define WEBHOOK_URL "https://discord.com/api/webhooks/1459686956308103179/YADUQ9ChAzCdEf-Dn45C1GLibyIg12aSM9No0tGHY2UHm67YZe0eNjKL7lqeSWrqYSJK"
+#define WEBHOOK_URL "YOUR DISCORD WEBHOOK"
 
 ArrayList g_ChatMessages;
 bool g_RoundActive = false;
@@ -15,10 +15,10 @@ bool g_RoundActive = false;
 public Plugin myinfo = 
 {
     name = "DoD:S Chat to Discord",
-    author = "Your Name",
+    author = "pratinha",
     description = "Sends end-of-round chat messages to Discord via webhook",
     version = PLUGIN_VERSION,
-    url = ""
+    url = "https://github.com/pratinha10/sm_dods_chat2discord"
 };
 
 public void OnPluginStart()
