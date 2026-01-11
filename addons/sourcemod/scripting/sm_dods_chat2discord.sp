@@ -7,7 +7,7 @@
 
 #define PLUGIN_VERSION "1.3"
 #define MAX_MESSAGES 500
-#define WEBHOOK_URL "https://discord.com/api/webhooks/1459686956308103179/YADUQ9ChAzCdEf-Dn45C1GLibyIg12aSM9No0tGHY2UHm67YZe0eNjKL7lqeSWrqYSJK"
+#define WEBHOOK_URL "https://discord.com/api/webhooks/URL"
 
 ArrayList g_ChatMessages;
 ArrayList g_AlliedPlayers;
