@@ -5,15 +5,17 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.2"
+#define PLUGIN_VERSION "1.3"
 #define MAX_MESSAGES 500
 #define WEBHOOK_URL "https://discord.com/api/webhooks/1459686956308103179/YADUQ9ChAzCdEf-Dn45C1GLibyIg12aSM9No0tGHY2UHm67YZe0eNjKL7lqeSWrqYSJK"
 
 ArrayList g_ChatMessages;
 ArrayList g_AlliedPlayers;
+ArrayList g_AlliedSteamIDs;
 ArrayList g_AxisPlayers;
+ArrayList g_AxisSteamIDs;
 bool g_GameActive = false;
-bool g_PlayersSnapshot = false;
+bool g_PlayersCaptured = false;
 
 public Plugin myinfo = 
 {
@@ -28,9 +30,12 @@ public void OnPluginStart()
 {
     g_ChatMessages = new ArrayList(ByteCountToCells(512));
     g_AlliedPlayers = new ArrayList(ByteCountToCells(64));
+    g_AlliedSteamIDs = new ArrayList(ByteCountToCells(32));
     g_AxisPlayers = new ArrayList(ByteCountToCells(64));
+    g_AxisSteamIDs = new ArrayList(ByteCountToCells(32));
     
     HookEvent("dod_game_over", Event_GameOver);
+    HookEvent("dod_round_win", Event_RoundWin);
     
     AddCommandListener(Command_Say, "say");
     AddCommandListener(Command_Say, "say_team");
@@ -46,30 +51,33 @@ public void OnPluginEnd()
 {
     delete g_ChatMessages;
     delete g_AlliedPlayers;
+    delete g_AlliedSteamIDs;
     delete g_AxisPlayers;
+    delete g_AxisSteamIDs;
 }
 
 public void OnMapStart()
 {
     g_GameActive = true;
-    g_PlayersSnapshot = false;
+    g_PlayersCaptured = false;
     g_ChatMessages.Clear();
     g_AlliedPlayers.Clear();
+    g_AlliedSteamIDs.Clear();
     g_AxisPlayers.Clear();
+    g_AxisSteamIDs.Clear();
     PrintToServer("[Chat2Discord] Map started - chat logging active");
-    
-    // Create timer to capture players 1 minute before map end
-    int timeleft;
-    if(GetMapTimeLeft(timeleft) && timeleft > 60)
-    {
-        CreateTimer(float(timeleft - 60), Timer_CapturePlayersSnapshot, _, TIMER_FLAG_NO_MAPCHANGE);
-    }
 }
 
-public Action Timer_CapturePlayersSnapshot(Handle timer)
+public Action Event_RoundWin(Event event, const char[] name, bool dontBroadcast)
 {
+    if(g_PlayersCaptured)
+        return Plugin_Continue;
+    
+    // Capture players immediately when round ends (before people disconnect)
     g_AlliedPlayers.Clear();
+    g_AlliedSteamIDs.Clear();
     g_AxisPlayers.Clear();
+    g_AxisSteamIDs.Clear();
     
     for(int i = 1; i <= MaxClients; i++)
     {
@@ -77,92 +85,101 @@ public Action Timer_CapturePlayersSnapshot(Handle timer)
         {
             int team = GetClientTeam(i);
             char playerName[64];
+            char steamID[32];
             GetClientName(i, playerName, sizeof(playerName));
+            GetClientAuthId(i, AuthId_Steam2, steamID, sizeof(steamID));
             
-            if(team == 2) // Allies
+            if(team == 2)
             {
                 g_AlliedPlayers.PushString(playerName);
+                g_AlliedSteamIDs.PushString(steamID);
             }
-            else if(team == 3) // Axis
+            else if(team == 3)
             {
                 g_AxisPlayers.PushString(playerName);
+                g_AxisSteamIDs.PushString(steamID);
             }
         }
     }
     
-    g_PlayersSnapshot = true;
-    PrintToServer("[Chat2Discord] Players snapshot captured - Allies: %d, Axis: %d", g_AlliedPlayers.Length, g_AxisPlayers.Length);
+    g_PlayersCaptured = true;
     
-    return Plugin_Stop;
-}
-
-public void OnClientPutInServer(int client)
-{
-    if(!IsFakeClient(client) && g_PlayersSnapshot)
-    {
-        // If snapshot already taken and new player joins, add them
-        CreateTimer(3.0, Timer_CheckPlayerTeam, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-    }
-}
-
-public Action Timer_CheckPlayerTeam(Handle timer, int userid)
-{
-    if(!g_PlayersSnapshot)
-        return Plugin_Stop;
+    PrintToServer("[Chat2Discord] Round Win - Players captured: Allied: %d, Axis: %d", 
+        g_AlliedPlayers.Length, g_AxisPlayers.Length);
     
-    int client = GetClientOfUserId(userid);
-    if(client == 0 || !IsClientInGame(client))
-        return Plugin_Stop;
-    
-    int team = GetClientTeam(client);
-    char playerName[64];
-    GetClientName(client, playerName, sizeof(playerName));
-    
-    if(team == 2) // Allies
-    {
-        if(g_AlliedPlayers.FindString(playerName) == -1)
-        {
-            g_AlliedPlayers.PushString(playerName);
-        }
-    }
-    else if(team == 3) // Axis
-    {
-        if(g_AxisPlayers.FindString(playerName) == -1)
-        {
-            g_AxisPlayers.PushString(playerName);
-        }
-    }
-    
-    return Plugin_Stop;
+    return Plugin_Continue;
 }
 
 public Action Event_GameOver(Event event, const char[] name, bool dontBroadcast)
 {
     g_GameActive = false;
     
-    PrintToServer("[Chat2Discord] Game Over - Captured messages: %d", g_ChatMessages.Length);
+    PrintToServer("[Chat2Discord] Game Over - Sending to Discord in 2 seconds");
     
-    CreateTimer(1.0, Timer_SendToDiscord, 0, TIMER_FLAG_NO_MAPCHANGE);
+    // Short delay to ensure scoreboard is visible
+    CreateTimer(2.0, Timer_SendToDiscord, 0, TIMER_FLAG_NO_MAPCHANGE);
     
     return Plugin_Continue;
+}
+
+public Action Timer_SendToDiscord(Handle timer, any data)
+{
+    SendChatToDiscord();
+    return Plugin_Stop;
+}
+
+public Action Timer_CaptureAndSend(Handle timer, any data)
+{
+    // Fallback: If players weren't captured in round_win, capture them now
+    if(!g_PlayersCaptured)
+    {
+        g_AlliedPlayers.Clear();
+        g_AlliedSteamIDs.Clear();
+        g_AxisPlayers.Clear();
+        g_AxisSteamIDs.Clear();
+        
+        for(int i = 1; i <= MaxClients; i++)
+        {
+            if(IsClientInGame(i) && !IsFakeClient(i))
+            {
+                int team = GetClientTeam(i);
+                char playerName[64];
+                char steamID[32];
+                GetClientName(i, playerName, sizeof(playerName));
+                GetClientAuthId(i, AuthId_Steam2, steamID, sizeof(steamID));
+                
+                if(team == 2)
+                {
+                    g_AlliedPlayers.PushString(playerName);
+                    g_AlliedSteamIDs.PushString(steamID);
+                }
+                else if(team == 3)
+                {
+                    g_AxisPlayers.PushString(playerName);
+                    g_AxisSteamIDs.PushString(steamID);
+                }
+            }
+        }
+        
+        PrintToServer("[Chat2Discord] Fallback - Players captured now");
+    }
+    
+    SendChatToDiscord();
+    
+    return Plugin_Stop;
 }
 
 public Action Command_Say(int client, const char[] command, int argc)
 {
     if(!IsValidClient(client))
-    {
         return Plugin_Continue;
-    }
     
     if(!g_GameActive)
-    {
         return Plugin_Continue;
-    }
     
     char message[256];
     char playerName[64];
     char finalMessage[512];
-    char steamID[32];
     
     GetCmdArgString(message, sizeof(message));
     StripQuotes(message);
@@ -171,7 +188,6 @@ public Action Command_Say(int client, const char[] command, int argc)
     if(strlen(message) == 0)
         return Plugin_Continue;
     
-    // Ignore messages containing %
     if(StrContains(message, "%") != -1)
     {
         PrintToServer("[Chat2Discord] Message ignored (contains %%)");
@@ -179,44 +195,56 @@ public Action Command_Say(int client, const char[] command, int argc)
     }
     
     GetClientName(client, playerName, sizeof(playerName));
-    GetClientAuthId(client, AuthId_Steam2, steamID, sizeof(steamID));
     
     bool isTeamChat = StrEqual(command, "say_team", false);
     bool isDead = !IsPlayerAlive(client);
-    char chatType[32];
     int team = GetClientTeam(client);
     
+    char teamEmoji[20];
+    
+    // Determine team emoji
+    if(team == 2)
+        strcopy(teamEmoji, sizeof(teamEmoji), ":green_circle:");
+    else if(team == 3)
+        strcopy(teamEmoji, sizeof(teamEmoji), ":red_circle:");
+    else
+        strcopy(teamEmoji, sizeof(teamEmoji), ":white_circle:");
+    
+    // Format based on chat type and alive status
     if(isTeamChat)
     {
-        switch(team)
+        if(isDead)
         {
-            case 2: Format(chatType, sizeof(chatType), isDead ? "[ALLIED DEAD]" : "[ALLIED TEAM]");
-            case 3: Format(chatType, sizeof(chatType), isDead ? "[AXIS DEAD]" : "[AXIS TEAM]");
-            case 1: Format(chatType, sizeof(chatType), "[SPECTATE]");
-            default: Format(chatType, sizeof(chatType), isDead ? "[TEAM DEAD]" : "[TEAM]");
+            // Team chat morto: :green_circle: (dead)(team) pratinha: mensagem
+            Format(finalMessage, sizeof(finalMessage), "%s (dead)(team) %s: %s", teamEmoji, playerName, message);
+        }
+        else
+        {
+            // Team chat vivo: :green_circle: pratinha (team): mensagem
+            Format(finalMessage, sizeof(finalMessage), "%s %s (team): %s", teamEmoji, playerName, message);
         }
     }
     else
     {
         if(team == 1)
         {
-            Format(chatType, sizeof(chatType), "[SPECTATE]");
-        }
-        else if(team == 2)
-        {
-            Format(chatType, sizeof(chatType), isDead ? "[ALLIED ALL DEAD]" : "[ALLIED ALL]");
-        }
-        else if(team == 3)
-        {
-            Format(chatType, sizeof(chatType), isDead ? "[AXIS ALL DEAD]" : "[AXIS ALL]");
+            // Spectate: :white_circle: observer: mensagem
+            Format(finalMessage, sizeof(finalMessage), "%s %s: %s", teamEmoji, playerName, message);
         }
         else
         {
-            Format(chatType, sizeof(chatType), isDead ? "[ALL DEAD]" : "[ALL]");
+            if(isDead)
+            {
+                // All chat morto: :green_circle: (dead) pratinha (all): mensagem
+                Format(finalMessage, sizeof(finalMessage), "%s (dead) %s (all): %s", teamEmoji, playerName, message);
+            }
+            else
+            {
+                // All chat vivo: :green_circle: pratinha (all): mensagem
+                Format(finalMessage, sizeof(finalMessage), "%s %s (all): %s", teamEmoji, playerName, message);
+            }
         }
     }
-    
-    Format(finalMessage, sizeof(finalMessage), "%s %s | %s: %s", chatType, steamID, playerName, message);
     
     if(g_ChatMessages.Length < MAX_MESSAGES)
     {
@@ -227,15 +255,16 @@ public Action Command_Say(int client, const char[] command, int argc)
     return Plugin_Continue;
 }
 
-public Action Timer_SendToDiscord(Handle timer, any data)
+void SendChatToDiscord()
 {
-    PrintToServer("[Chat2Discord] Timer triggered - Preparing to send %d messages", g_ChatMessages.Length);
-    
+    // Don't send if no messages
     if(g_ChatMessages.Length == 0)
     {
-        PrintToServer("[Chat2Discord] No messages to send");
-        return Plugin_Stop;
+        PrintToServer("[Chat2Discord] No messages to send - skipping webhook");
+        return;
     }
+    
+    PrintToServer("[Chat2Discord] Preparing to send to Discord");
     
     char mapName[64];
     GetCurrentMap(mapName, sizeof(mapName));
@@ -247,35 +276,35 @@ public Action Timer_SendToDiscord(Handle timer, any data)
     ConVar cvHostname = FindConVar("hostname");
     cvHostname.GetString(hostname, sizeof(hostname));
     
-    // Get players by team from stored lists
-    char alliedPlayers[1024] = "";
-    char axisPlayers[1024] = "";
+    char alliedPlayers[2048] = "";
+    char axisPlayers[2048] = "";
     
-    // Build Allied players list
     for(int i = 0; i < g_AlliedPlayers.Length; i++)
     {
         char playerName[64];
+        char steamID[32];
         g_AlliedPlayers.GetString(i, playerName, sizeof(playerName));
+        g_AlliedSteamIDs.GetString(i, steamID, sizeof(steamID));
         
         if(i > 0)
-            Format(alliedPlayers, sizeof(alliedPlayers), "%s, %s", alliedPlayers, playerName);
+            Format(alliedPlayers, sizeof(alliedPlayers), "%s\n%s | %s", alliedPlayers, playerName, steamID);
         else
-            strcopy(alliedPlayers, sizeof(alliedPlayers), playerName);
+            Format(alliedPlayers, sizeof(alliedPlayers), "%s | %s", playerName, steamID);
     }
     
-    // Build Axis players list
     for(int i = 0; i < g_AxisPlayers.Length; i++)
     {
         char playerName[64];
+        char steamID[32];
         g_AxisPlayers.GetString(i, playerName, sizeof(playerName));
+        g_AxisSteamIDs.GetString(i, steamID, sizeof(steamID));
         
         if(i > 0)
-            Format(axisPlayers, sizeof(axisPlayers), "%s, %s", axisPlayers, playerName);
+            Format(axisPlayers, sizeof(axisPlayers), "%s\n%s | %s", axisPlayers, playerName, steamID);
         else
-            strcopy(axisPlayers, sizeof(axisPlayers), playerName);
+            Format(axisPlayers, sizeof(axisPlayers), "%s | %s", playerName, steamID);
     }
     
-    // Build chat log
     char chatLog[3500];
     strcopy(chatLog, sizeof(chatLog), "");
     
@@ -298,21 +327,17 @@ public Action Timer_SendToDiscord(Handle timer, any data)
         chatLog[3400] = '\0';
     }
     
-    // Create single embed
     JSONObject embed = new JSONObject();
     embed.SetString("title", hostname);
-    embed.SetInt("color", 3447003); // Blue
+    embed.SetInt("color", 3447003);
     
-    // Add thumbnail
     JSONObject thumbnail = new JSONObject();
     thumbnail.SetString("url", "https://i.ibb.co/chCK7fS8/ANIMATED-LOGO.gif");
     embed.Set("thumbnail", thumbnail);
     delete thumbnail;
     
-    // Create fields
     JSONArray fields = new JSONArray();
     
-    // Map and date info
     JSONObject mapField = new JSONObject();
     mapField.SetString("name", "📍 Map");
     mapField.SetString("value", mapName);
@@ -336,7 +361,6 @@ public Action Timer_SendToDiscord(Handle timer, any data)
     fields.Push(msgField);
     delete msgField;
     
-    // Teams
     if(g_AlliedPlayers.Length > 0)
     {
         JSONObject alliedField = new JSONObject();
@@ -357,7 +381,6 @@ public Action Timer_SendToDiscord(Handle timer, any data)
         delete axisField;
     }
     
-    // Chat log
     JSONObject chatField = new JSONObject();
     chatField.SetString("name", "💭 Chat Log");
     chatField.SetString("value", strlen(chatLog) > 0 ? chatLog : "No messages");
@@ -368,20 +391,17 @@ public Action Timer_SendToDiscord(Handle timer, any data)
     embed.Set("fields", fields);
     delete fields;
     
-    // Add image after chat log
     JSONObject image = new JSONObject();
     image.SetString("url", "https://i.ibb.co/p6MztFbC/Howto-MIX-DODGLOBAL.gif");
     embed.Set("image", image);
     delete image;
     
-    // Footer with image
     JSONObject footer = new JSONObject();
     footer.SetString("text", "Ingame Logger");
     footer.SetString("icon_url", "https://cdn2.steamgriddb.com/icon/2555b8e9861b4b0e141181b725fb1b3b/32/1024x1024.png");
     embed.Set("footer", footer);
     delete footer;
     
-    // Create payload
     JSONObject payload = new JSONObject();
     payload.SetString("username", "DoD:S Chat Logger");
     
@@ -398,8 +418,6 @@ public Action Timer_SendToDiscord(Handle timer, any data)
     delete payload;
     
     PrintToServer("[Chat2Discord] Webhook request sent");
-    
-    return Plugin_Stop;
 }
 
 public void OnWebhookResponse(HTTPResponse response, any value)
@@ -441,27 +459,24 @@ public Action Command_TestWebhook(int client, int args)
     ConVar cvHostname = FindConVar("hostname");
     cvHostname.GetString(hostname, sizeof(hostname));
     
-    // Header embed
     JSONObject headerEmbed = new JSONObject();
     headerEmbed.SetString("title", hostname);
-    headerEmbed.SetInt("color", 65280); // Green for test
+    headerEmbed.SetInt("color", 65280);
     
     char description[256];
     Format(description, sizeof(description), "**Map:** %s\n**Date:** %s\n**Status:** ✅ Webhook Test", mapName, timeString);
     headerEmbed.SetString("description", description);
     
-    // Test info embed
     JSONObject testEmbed = new JSONObject();
     testEmbed.SetString("title", "🧪 Test Information");
     testEmbed.SetString("description", "This is a test message from the DoD:S Chat Logger plugin!\n\nIf you can see this, the webhook is working correctly.");
-    testEmbed.SetInt("color", 3447003); // Blue
+    testEmbed.SetInt("color", 3447003);
     
     JSONObject footer = new JSONObject();
     footer.SetString("text", "Day of Defeat: Source - Test Mode");
     testEmbed.Set("footer", footer);
     delete footer;
     
-    // Create payload
     JSONObject payload = new JSONObject();
     payload.SetString("username", "DoD:S Chat Logger");
     payload.SetString("content", "🔔 **Webhook Test**");
