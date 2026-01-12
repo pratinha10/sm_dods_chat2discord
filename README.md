@@ -2,7 +2,7 @@
 
 A SourceMod plugin that sends in-game chat logs to Discord via webhook when the game ends.
 
-![Day of Defeat: Source](https://cdn2.steamgriddb.com/icon/2555b8e9861b4b0e141181b725fb1b3b/32/256x256.png)
+![Day of Defeat: Source](https://cdn2.steamgriddb.com/thumb/9bd22b60086cdb18845ae061fbd49bdd.jpg)
 
 ## Features
 
@@ -17,7 +17,7 @@ A SourceMod plugin that sends in-game chat logs to Discord via webhook when the 
 
 ## Requirements
 
-- SourceMod 1.10 or higher
+- SourceMod 1.11 or higher
 - [RipExt Extension](https://github.com/ErikMinekus/sm-ripext) v1.3.2 or higher
 
 ## Installation
@@ -123,4 +123,44 @@ The webhook sends a beautifully formatted embed containing:
 
 ## Filtering
 
-Messag
+Messages containing the `%` symbol are automatically filtered and will not appear in logs. This is useful for filtering plugin commands or special messages.
+
+## Troubleshooting
+
+### Plugin shows as "Failed" in `sm plugins list`
+
+- Verify RipExt extension is installed correctly
+- Check `sm exts list` - RipExt should show as "Running"
+- Ensure the certificate is installed (Windows only)
+
+### Webhook not sending messages
+
+1. Test the webhook with `sm_testwebhook`
+2. Check server console for error messages
+3. Verify the webhook URL is correct
+4. Ensure your server can make outbound HTTPS connections
+5. Check firewall settings
+
+### Players not appearing in team lists
+
+- The plugin captures players 1 minute before game end
+- Players who join after this snapshot will still be added
+- Players who disconnect before game end will still appear (if they were captured)
+
+## Support
+
+If you encounter any issues or have suggestions, please open an issue on [GitHub](https://github.com/pratinha10/sm_dods_chat2discord/issues).
+
+## Credits
+
+- **Author**: pratinha
+- **RipExt Extension**: [Erik Minekus](https://github.com/ErikMinekus/sm-ripext)
+- **Game**: Day of Defeat: Source by Valve
+
+## License
+
+This project is open source. Feel free to modify and distribute as needed.
+
+---
+
+Made with ❤️ for the Day of Defeat: Source community

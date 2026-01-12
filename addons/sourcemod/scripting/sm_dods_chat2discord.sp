@@ -1,3 +1,24 @@
+/**
+ * Day of Defeat: Source - Chat to Discord
+ * 
+ * Automatically sends in-game chat logs to Discord via webhook when the game ends.
+ * Captures all chat messages (team chat, all chat, spectator) with player information
+ * and team rosters, then sends them in a beautifully formatted Discord embed.
+ * 
+ * Features:
+ * - Captures chat messages during gameplay
+ * - Differentiates between team chat, all chat, and spectator messages
+ * - Shows if players were alive or dead when messaging
+ * - Lists all players by team from round end
+ * - Includes Steam IDs for player identification
+ * - Configurable via cfg file (webhook URL and embed images)
+ * - Ignores messages containing % symbol
+ * 
+ * Author: pratinha
+ * GitHub: https://github.com/pratinha10/sm_dods_chat2discord
+ * Version: 1.4
+ */
+
 #include <sourcemod>
 #include <sdktools>
 #include <ripext>
@@ -5,9 +26,13 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.3"
+#define PLUGIN_VERSION "1.4"
 #define MAX_MESSAGES 500
-#define WEBHOOK_URL "https://discord.com/api/webhooks/URL"
+
+ConVar g_cvWebhookURL;
+ConVar g_cvThumbnailURL;
+ConVar g_cvImageURL;
+ConVar g_cvFooterIconURL;
 
 ArrayList g_ChatMessages;
 ArrayList g_AlliedPlayers;
@@ -41,10 +66,72 @@ public void OnPluginStart()
     AddCommandListener(Command_Say, "say_team");
     
     RegAdminCmd("sm_testwebhook", Command_TestWebhook, ADMFLAG_ROOT, "Test Discord webhook connection");
+    RegAdminCmd("sm_chat2discord_reload", Command_ReloadConfig, ADMFLAG_ROOT, "Reload chat2discord configuration");
     
     g_GameActive = true;
     
+    LoadConfig();
+    
     PrintToServer("[Chat2Discord] Plugin loaded successfully");
+}
+
+public Action Command_ReloadConfig(int client, int args)
+{
+    LoadConfig();
+    ReplyToCommand(client, "[Chat2Discord] Configuration reloaded!");
+    return Plugin_Handled;
+}
+
+void LoadConfig()
+{
+    char configPath[PLATFORM_MAX_PATH];
+    BuildPath(Path_SM, configPath, sizeof(configPath), "configs/chat2discord.cfg");
+    
+    KeyValues kv = new KeyValues("Chat2Discord");
+    
+    if(!kv.ImportFromFile(configPath))
+    {
+        PrintToServer("[Chat2Discord] Config file not found, creating default: %s", configPath);
+        CreateDefaultConfig(configPath);
+        kv.ImportFromFile(configPath);
+    }
+    
+    char buffer[512];
+    
+    kv.GetString("webhook_url", buffer, sizeof(buffer), "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE");
+    delete g_cvWebhookURL;
+    g_cvWebhookURL = CreateConVar("sm_chat2discord_webhook_internal", buffer, "", FCVAR_DONTRECORD);
+    
+    kv.GetString("thumbnail_url", buffer, sizeof(buffer), "https://cdn2.steamgriddb.com/thumb/1cc7df585769791a5a4028abf36af4f5.jpg");
+    delete g_cvThumbnailURL;
+    g_cvThumbnailURL = CreateConVar("sm_chat2discord_thumbnail_internal", buffer, "", FCVAR_DONTRECORD);
+    
+    kv.GetString("image_url", buffer, sizeof(buffer), "https://cdn2.steamgriddb.com/hero_thumb/66d4c457e5def18dcc1a88da35522e51.jpg");
+    delete g_cvImageURL;
+    g_cvImageURL = CreateConVar("sm_chat2discord_image_internal", buffer, "", FCVAR_DONTRECORD);
+    
+    kv.GetString("footer_icon_url", buffer, sizeof(buffer), "https://cdn2.steamgriddb.com/icon_thumb/d4809f07d773c2013d584ce3ab38108f.png");
+    delete g_cvFooterIconURL;
+    g_cvFooterIconURL = CreateConVar("sm_chat2discord_footer_internal", buffer, "", FCVAR_DONTRECORD);
+    
+    delete kv;
+    
+    PrintToServer("[Chat2Discord] Configuration loaded from: %s", configPath);
+}
+
+void CreateDefaultConfig(const char[] path)
+{
+    KeyValues kv = new KeyValues("Chat2Discord");
+    
+    kv.SetString("webhook_url", "https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE");
+    kv.SetString("thumbnail_url", "https://cdn2.steamgriddb.com/thumb/1cc7df585769791a5a4028abf36af4f5.jpg");
+    kv.SetString("image_url", "https://cdn2.steamgriddb.com/hero_thumb/66d4c457e5def18dcc1a88da35522e51.jpg");
+    kv.SetString("footer_icon_url", "https://cdn2.steamgriddb.com/icon_thumb/d4809f07d773c2013d584ce3ab38108f.png");
+    
+    kv.ExportToFile(path);
+    delete kv;
+    
+    PrintToServer("[Chat2Discord] Created default config file: %s", path);
 }
 
 public void OnPluginEnd()
@@ -264,6 +351,15 @@ void SendChatToDiscord()
         return;
     }
     
+    char webhookURL[512];
+    g_cvWebhookURL.GetString(webhookURL, sizeof(webhookURL));
+    
+    if(strlen(webhookURL) == 0)
+    {
+        PrintToServer("[Chat2Discord] ERROR: Webhook URL not configured! Set sm_chat2discord_webhook in cfg/sourcemod/chat2discord.cfg");
+        return;
+    }
+    
     PrintToServer("[Chat2Discord] Preparing to send to Discord");
     
     char mapName[64];
@@ -331,10 +427,16 @@ void SendChatToDiscord()
     embed.SetString("title", hostname);
     embed.SetInt("color", 3447003);
     
-    JSONObject thumbnail = new JSONObject();
-    thumbnail.SetString("url", "https://i.ibb.co/chCK7fS8/ANIMATED-LOGO.gif");
-    embed.Set("thumbnail", thumbnail);
-    delete thumbnail;
+    char thumbnailURL[256];
+    g_cvThumbnailURL.GetString(thumbnailURL, sizeof(thumbnailURL));
+    
+    if(strlen(thumbnailURL) > 0)
+    {
+        JSONObject thumbnail = new JSONObject();
+        thumbnail.SetString("url", thumbnailURL);
+        embed.Set("thumbnail", thumbnail);
+        delete thumbnail;
+    }
     
     JSONArray fields = new JSONArray();
     
@@ -391,14 +493,24 @@ void SendChatToDiscord()
     embed.Set("fields", fields);
     delete fields;
     
-    JSONObject image = new JSONObject();
-    image.SetString("url", "https://i.ibb.co/p6MztFbC/Howto-MIX-DODGLOBAL.gif");
-    embed.Set("image", image);
-    delete image;
+    char imageURL[256];
+    g_cvImageURL.GetString(imageURL, sizeof(imageURL));
+    
+    if(strlen(imageURL) > 0)
+    {
+        JSONObject image = new JSONObject();
+        image.SetString("url", imageURL);
+        embed.Set("image", image);
+        delete image;
+    }
+    
+    char footerIconURL[256];
+    g_cvFooterIconURL.GetString(footerIconURL, sizeof(footerIconURL));
     
     JSONObject footer = new JSONObject();
     footer.SetString("text", "Ingame Logger");
-    footer.SetString("icon_url", "https://cdn2.steamgriddb.com/icon/2555b8e9861b4b0e141181b725fb1b3b/32/1024x1024.png");
+    if(strlen(footerIconURL) > 0)
+        footer.SetString("icon_url", footerIconURL);
     embed.Set("footer", footer);
     delete footer;
     
@@ -412,7 +524,7 @@ void SendChatToDiscord()
     delete embeds;
     delete embed;
     
-    HTTPRequest request = new HTTPRequest(WEBHOOK_URL);
+    HTTPRequest request = new HTTPRequest(webhookURL);
     request.Post(payload, OnWebhookResponse);
     
     delete payload;
@@ -447,6 +559,16 @@ public void OnWebhookResponse(HTTPResponse response, any value)
 
 public Action Command_TestWebhook(int client, int args)
 {
+    char webhookURL[512];
+    g_cvWebhookURL.GetString(webhookURL, sizeof(webhookURL));
+    
+    if(strlen(webhookURL) == 0)
+    {
+        ReplyToCommand(client, "[Chat2Discord] ERROR: Webhook URL not configured!");
+        PrintToServer("[Chat2Discord] ERROR: Set sm_chat2discord_webhook in cfg/sourcemod/chat2discord.cfg");
+        return Plugin_Handled;
+    }
+    
     ReplyToCommand(client, "[Chat2Discord] Sending test message to Discord...");
     
     char mapName[64];
@@ -490,7 +612,7 @@ public Action Command_TestWebhook(int client, int args)
     delete headerEmbed;
     delete testEmbed;
     
-    HTTPRequest request = new HTTPRequest(WEBHOOK_URL);
+    HTTPRequest request = new HTTPRequest(webhookURL);
     request.Post(payload, OnTestWebhookResponse, client);
     
     delete payload;
@@ -521,7 +643,10 @@ public void OnTestWebhookResponse(HTTPResponse response, int client)
         else if(view_as<int>(response.Status) == 0)
         {
             PrintToServer("[Chat2Discord] Connection failed - Check firewall/internet connection");
-            PrintToServer("[Chat2Discord] Webhook URL: %s", WEBHOOK_URL);
+            
+            char webhookURL[512];
+            g_cvWebhookURL.GetString(webhookURL, sizeof(webhookURL));
+            PrintToServer("[Chat2Discord] Webhook URL: %s", webhookURL);
         }
     }
 }
