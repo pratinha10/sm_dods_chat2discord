@@ -34,7 +34,7 @@ The webhook sends a beautifully formatted embed containing:
 
 ## Installation
 
-### 1. Recommended installation procedure (Release Packages)
+### Recommended installation procedure [GitHub Releases](https://github.com/pratinha10/sm_dods_chat2discord/releases)
 
 **For Windows:**
 1. Extract download the Release package `sm_dods_chat2discord-1.4-windows.zip`
@@ -47,7 +47,7 @@ The webhook sends a beautifully formatted embed containing:
 1. Extract download the Release package `sm_dods_chat2discord-1.4-linux.zip`
 2. Extract and preserve the folder and file structure
 
-### 2. Installation procedure (Code >> Download Zip)
+### OR Installation procedure (Code >> Download Zip)
 
 **Install RipExt Extension***
 Download the latest version of RipExt from [GitHub Releases](https://github.com/ErikMinekus/sm-ripext/releases)
