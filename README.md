@@ -15,9 +15,17 @@ A SourceMod plugin that sends in-game chat logs to Discord via webhook when the 
 - ⏰ Timestamps in European format (DD-MM-YYYY)
 - 🧪 Test command to verify webhook connectivity
 
-## Preview
+## Discord Embed Preview
+
+The webhook sends a beautifully formatted embed containing:
 
 ![Day of Defeat: Source](https://i.ibb.co/DfxVySfS/image.png)
+
+- **Server hostname** as the title
+- **Map name, date/time, and message count**
+- **Player lists** separated by team (Allies/Axis)
+- **Complete chat log** with all messages
+- **Custom thumbnails and images**
 
 ## Requirements
 
@@ -51,16 +59,10 @@ Download the latest version of RipExt from [GitHub Releases](https://github.com/
 
 ### 2. Install the Plugin
 
-1. Download `sm_dods_chat2discord.sp` from this repository
-2. Place it in `addons/sourcemod/scripting/`
-3. Compile the plugin:
-   ```bash
-   cd addons/sourcemod/scripting
-   ./spcomp sm_dods_chat2discord.sp
-   ```
-4. Move the compiled `sm_dods_chat2discord.smx` to `addons/sourcemod/plugins/`
-5. **Edit the plugin** and replace the webhook URL with your own Discord webhook
-6. Restart your server or load the plugin:
+1. Download the compiled `sm_dods_chat2discord.smx` to `addons/sourcemod/plugins/`
+2. Download the config `chat2discord.cfg` to `addons/sourcemod/configs/`
+3. Open and edit the `chat2discord.cfg` with your Discord webhook URL and URL images
+4. Restart your server or load the plugin:
    ```
    sm plugins load sm_dods_chat2discord
    ```
@@ -74,11 +76,7 @@ Download the latest version of RipExt from [GitHub Releases](https://github.com/
 3. Click **New Webhook**
 4. Choose the channel where you want to receive chat logs
 5. Copy the webhook URL
-6. Open `sm_dods_chat2discord.sp` and replace the `WEBHOOK_URL` with your own:
-   ```cpp
-   #define WEBHOOK_URL "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_HERE"
-   ```
-7. Recompile the plugin
+6. Open `chat2discord.cfg` and replace the `WEBHOOK_URL` with your own:
 
 ## Usage
 
@@ -91,39 +89,6 @@ The plugin works automatically:
 ### Admin Commands
 
 - `sm_testwebhook` - Send a test message to Discord to verify the webhook is working
-
-## Chat Format
-
-Messages are formatted to show maximum information:
-
-```
-[ALLIED TEAM] STEAM_0:1:12345 | pratinha: rush B
-[AXIS ALL] STEAM_0:0:67890 | player2: gg wp
-[ALLIED ALL DEAD] STEAM_0:1:11111 | observer: nice game
-[SPECTATE] STEAM_0:1:22222 | spectator: watching
-```
-
-### Chat Types
-
-- `[ALLIED TEAM]` - Team chat from Allies (alive)
-- `[ALLIED DEAD]` - Team chat from Allies (dead)
-- `[ALLIED ALL]` - All chat from Allies (alive)
-- `[ALLIED ALL DEAD]` - All chat from Allies (dead)
-- `[AXIS TEAM]` - Team chat from Axis (alive)
-- `[AXIS DEAD]` - Team chat from Axis (dead)
-- `[AXIS ALL]` - All chat from Axis (alive)
-- `[AXIS ALL DEAD]` - All chat from Axis (dead)
-- `[SPECTATE]` - Chat from spectators
-
-## Discord Embed Preview
-
-The webhook sends a beautifully formatted embed containing:
-
-- **Server hostname** as the title
-- **Map name, date/time, and message count**
-- **Player lists** separated by team (Allies/Axis)
-- **Complete chat log** with all messages
-- **Custom thumbnails and images**
 
 ## Filtering
 
