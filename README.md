@@ -38,14 +38,14 @@ The webhook sends a beautifully formatted embed containing:
 
 **For Windows:**
 1. Extract download the Release package `sm_dods_chat2discord-1.4-windows.zip`
-2. Extract and respect the tree order of files
+2. Extract and preserve the folder and file structure
 3. Goto `addons/sourcemod/configs/ripext/ca-bundle.crt` and open it
 4. Click in the button `Install Certificate` and press `OK` button
 
 
 **For Linux:**
 1. Extract download the Release package `sm_dods_chat2discord-1.4-linux.zip`
-2. Extract and respect the tree order of files
+2. Extract and preserve the folder and file structure
 
 ### 2. Installation procedure (Code >> Download Zip)
 
