@@ -34,8 +34,22 @@ The webhook sends a beautifully formatted embed containing:
 
 ## Installation
 
-### 1. Install RipExt Extension
+### 1. Recommended installation procedure (Release Packages)
 
+**For Windows:**
+1. Extract download the Release package `sm_dods_chat2discord-1.4-windows.zip`
+2. Extract and respect the tree order of files
+3. Goto `addons/sourcemod/configs/ripext/ca-bundle.crt` and open it
+4. Click in the button `Install Certificate` and press `OK` button
+
+
+**For Linux:**
+1. Extract download the Release package `sm_dods_chat2discord-1.4-linux.zip`
+2. Extract and respect the tree order of files
+
+### 2. Installation procedure (Code >> Download Zip)
+
+**Install RipExt Extension***
 Download the latest version of RipExt from [GitHub Releases](https://github.com/ErikMinekus/sm-ripext/releases)
 
 **For Windows:**
@@ -48,7 +62,7 @@ Download the latest version of RipExt from [GitHub Releases](https://github.com/
 2. Extract `rip.ext.so` (x64) to `addons/sourcemod/extensions/x64/`
 3. Extract `ca-bundle.crt` to `addons/sourcemod/configs/ripext/`
 
-### 2. Install the Plugin
+### 3. Install the Plugin
 
 1. Download the compiled `sm_dods_chat2discord.smx` to `addons/sourcemod/plugins/`
 2. Download the config `chat2discord.cfg` to `addons/sourcemod/configs/`
