@@ -41,21 +41,12 @@ Download the latest version of RipExt from [GitHub Releases](https://github.com/
 **For Windows:**
 1. Extract `rip.ext.dll` to `addons/sourcemod/extensions/`
 2. Extract `rip.ext.dll` (x64) to `addons/sourcemod/extensions/x64/`
-3. Install the certificate from `addons/sourcemod/configs/ripext/` (double-click the `.crt` file)
+3. Install the certificate from `addons/sourcemod/configs/ripext/` (double-click the `ca-bundle.crt` file)
 
 **For Linux:**
 1. Extract `rip.ext.so` to `addons/sourcemod/extensions/`
 2. Extract `rip.ext.so` (x64) to `addons/sourcemod/extensions/x64/`
-2. Install CA certificates:
-   ```bash
-   # Debian/Ubuntu
-   sudo apt-get install ca-certificates
-   sudo update-ca-certificates
-   
-   # CentOS/RHEL
-   sudo yum install ca-certificates
-   sudo update-ca-trust
-   ```
+3. Extract `ca-bundle.crt` to `addons/sourcemod/configs/ripext/`
 
 ### 2. Install the Plugin
 
@@ -92,7 +83,7 @@ The plugin works automatically:
 
 ## Filtering
 
-Messages containing the `%` symbol are automatically filtered and will not appear in logs. Because most players have binds with `%t` for timeleft, `%h` for health and `%l` for location. This is useful for filtering plugin commands or special messages and avoid SPAM.
+Messages containing the `%` symbol are automatically filtered and will not appear in logs. Because most players have binds with `%t` for timeleft, `%h` for health and `%l` for location commands. This is useful for filtering plugin commands or special messages and avoid SPAM.
 
 ## Troubleshooting
 
