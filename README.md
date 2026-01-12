@@ -80,6 +80,8 @@ The plugin works automatically:
 ### Admin Commands
 
 - `sm_testwebhook` - Send a test message to Discord to verify the webhook is working
+- `sm_chat2discord_reload` - Reload the configuration without restarting the server
+
 
 ## Filtering
 
