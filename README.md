@@ -15,6 +15,10 @@ A SourceMod plugin that sends in-game chat logs to Discord via webhook when the 
 - ⏰ Timestamps in European format (DD-MM-YYYY)
 - 🧪 Test command to verify webhook connectivity
 
+## Preview
+
+![Day of Defeat: Source](https://i.ibb.co/DfxVySfS/image.png)
+
 ## Requirements
 
 - SourceMod 1.11 or higher
@@ -27,12 +31,13 @@ A SourceMod plugin that sends in-game chat logs to Discord via webhook when the 
 Download the latest version of RipExt from [GitHub Releases](https://github.com/ErikMinekus/sm-ripext/releases)
 
 **For Windows:**
-1. Extract `ripext.ext.dll` to `addons/sourcemod/extensions/`
-2. Extract `ripext.ext.dll` (x64) to `addons/sourcemod/extensions/x64/`
+1. Extract `rip.ext.dll` to `addons/sourcemod/extensions/`
+2. Extract `rip.ext.dll` (x64) to `addons/sourcemod/extensions/x64/`
 3. Install the certificate from `addons/sourcemod/configs/ripext/` (double-click the `.crt` file)
 
 **For Linux:**
-1. Extract `ripext.ext.so` to `addons/sourcemod/extensions/`
+1. Extract `rip.ext.so` to `addons/sourcemod/extensions/`
+2. Extract `rip.ext.so` (x64) to `addons/sourcemod/extensions/x64/`
 2. Install CA certificates:
    ```bash
    # Debian/Ubuntu
@@ -86,7 +91,6 @@ The plugin works automatically:
 ### Admin Commands
 
 - `sm_testwebhook` - Send a test message to Discord to verify the webhook is working
-  - Requires: `ADMFLAG_ROOT` (root admin access)
 
 ## Chat Format
 
@@ -123,7 +127,7 @@ The webhook sends a beautifully formatted embed containing:
 
 ## Filtering
 
-Messages containing the `%` symbol are automatically filtered and will not appear in logs. This is useful for filtering plugin commands or special messages.
+Messages containing the `%` symbol are automatically filtered and will not appear in logs. Because most players have binds with `%t` for timeleft, `%h` for health and `%l` for location. This is useful for filtering plugin commands or special messages and avoid SPAM.
 
 ## Troubleshooting
 
