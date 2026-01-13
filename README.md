@@ -50,6 +50,7 @@ The webhook sends a beautifully formatted embed containing:
 ### OR Installation procedure (Code >> Download Zip)
 
 **Install RipExt Extension**
+
 Download the latest version of RipExt from [GitHub Releases](https://github.com/ErikMinekus/sm-ripext/releases)
 
 **For Windows:**
